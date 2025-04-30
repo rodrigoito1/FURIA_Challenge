@@ -5,28 +5,10 @@ import json
 chave_api = "8163572933:AAH5r4Ip8ZBVuBOlaqFEH18s-EwzOZ7AxNA"
 bot = telebot.TeleBot(chave_api)
 
-# Nome fixo do adversário
 adversario_nome = "NAVI"
-
-# Armazena os estados temporários dos usuários
 estado_resultado = {}
 
-# Carregar JSON de dados fixos
-def carregarDados():
-    with open('dados.json', 'r', encoding='utf-8') as file:
-        return json.load(file)
-
-dados = carregarDados()
-
-# Carregar o resultado real
-def carregar_resultado():
-    try:
-        with open("resultado_real.json", "r", encoding="utf-8") as f:
-            return json.load(f)
-    except FileNotFoundError:
-        return None
-
-# Utilitários para JSON
+# Utilitários de JSON
 def carregar_json(nome):
     try:
         with open(nome, "r", encoding="utf-8") as f:
@@ -38,7 +20,19 @@ def salvar_json(nome, dados):
     with open(nome, "w", encoding="utf-8") as f:
         json.dump(dados, f, ensure_ascii=False, indent=4)
 
-# --- COMANDO /palpites ---
+def carregarDados():
+    return carregar_json("dados.json")
+
+dados = carregarDados()
+
+def carregar_resultado():
+    try:
+        with open("resultado_real.json", "r", encoding="utf-8") as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return None
+
+# --- /palpites ---
 @bot.message_handler(commands=["palpites"])
 def iniciar_palpite(mensagem):
     uid = str(mensagem.from_user.id)
@@ -52,7 +46,7 @@ def receber_palpite_furia(mensagem):
     try:
         furia = int(mensagem.text.strip())
         estado_resultado[uid]["furia"] = furia
-        msg = bot.send_message(mensagem.chat.id, "🔢 Quantos rounds o adversário fará?")
+        msg = bot.send_message(mensagem.chat.id, f"🔢 Quantos rounds o {adversario_nome} fará?")
         bot.register_next_step_handler(msg, receber_palpite_oponente)
     except:
         bot.reply_to(mensagem, "❌ Envie um número válido.")
@@ -76,41 +70,43 @@ def receber_palpite_oponente(mensagem):
         palpites[uid] = palpite
         salvar_json("palpites.json", palpites)
 
-        bot.reply_to(mensagem, "✅ Palpite registrado com sucesso!")
-
-        # Carrega o resultado atual do JSON
-        resultado_real = carregar_resultado()
-        if not resultado_real:
-            bot.reply_to(mensagem, "⚠️ Resultado real não definido ainda.")
-            return
-
-        # Verifica os palpites com base no resultado real
-        pontuacao = carregar_json("pontuacao.json")
-        acertos = []
-
-        for uid, p in palpites.items():
-            if p["palpite"] == resultado_real:
-                nome = p["nome"]
-                acertos.append(nome)
-                if uid not in pontuacao:
-                    pontuacao[uid] = {"nome": nome, "pontos": 0}
-                pontuacao[uid]["pontos"] += 1
-
-        salvar_json("pontuacao.json", pontuacao)
-        #salvar_json("palpites.json", {})  # Limpa palpites
         estado_resultado.pop(uid, None)
-
-        if acertos:
-            texto = "🏆 Palpites certos!\n\n" + "\n".join([f"🎉 {nome}" for nome in acertos])
-        else:
-            texto = "😕 Ninguém acertou dessa vez."
-
-        bot.reply_to(mensagem, texto)
+        bot.reply_to(mensagem, "✅ Palpite registrado com sucesso!")
 
     except:
         bot.reply_to(mensagem, "❌ Envie um número válido.")
 
-# --- Outros comandos do menu ---
+# --- /verificar_resultado ---
+@bot.message_handler(commands=["verificar_resultado"])
+def verificar_resultado(mensagem):
+    resultado_real = carregar_resultado()
+    if not resultado_real:
+        bot.reply_to(mensagem, "⚠️ O resultado real ainda não foi definido.")
+        return
+
+    palpites = carregar_json("palpites.json")
+    pontuacao = carregar_json("pontuacao.json")
+    acertos = []
+
+    for uid, p in palpites.items():
+        if p["palpite"] == resultado_real:
+            nome = p["nome"]
+            acertos.append(nome)
+            if uid not in pontuacao:
+                pontuacao[uid] = {"nome": nome, "pontos": 0}
+            pontuacao[uid]["pontos"] += 1
+
+    salvar_json("pontuacao.json", pontuacao)
+    # salvar_json("palpites.json", {})  # Descomente para limpar os palpites após verificar
+
+    if acertos:
+        texto = "🏆 Palpites certos!\n\n" + "\n".join([f"🎉 {nome}" for nome in acertos])
+    else:
+        texto = "😕 Ninguém acertou dessa vez."
+
+    bot.reply_to(mensagem, texto)
+
+# --- Menu e outros comandos ---
 def menu():
     return (
         "Escolha uma opção:\n"
@@ -118,7 +114,8 @@ def menu():
         "/partidas - Próximas partidas\n"
         "/historico - Histórico de partidas\n"
         "/loja - Loja oficial FURIA\n"
-        "/palpites - Enviar palpite"
+        "/palpites - Enviar palpite\n"
+        "/verificar_resultado - Verificar palpites corretos"
     )
 
 @bot.message_handler(commands=["start", "menu"])
