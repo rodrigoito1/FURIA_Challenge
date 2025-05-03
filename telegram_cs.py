@@ -244,7 +244,7 @@ def maiores_pontuadores(mensagem):
     pontuadores_ordenados = sorted(pontuacao.items(), key=lambda x: x[1]["pontos"], reverse=True)
 
     # Cria uma mensagem com os 10 maiores pontuadores
-    texto = "🏆 **Top 10 Maiores Pontuadores**:\n"
+    texto = "🏆 Top 10 Maiores Pontuadores:\n"
     for i, (uid, dados) in enumerate(pontuadores_ordenados[:10], 1):
         nome = dados["nome"]
         pontos = dados["pontos"]
